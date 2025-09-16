@@ -19,12 +19,14 @@ Una aplicación de React Native con Expo para practicar conjugaciones de verbos,
 ## Instalación y configuración
 
 1. Clona el repositorio:
+
    ```bash
    git clone https://github.com/Fer-O-S/Verbix.git
    cd Verbix
    ```
 
 2. Instala las dependencias:
+
    ```bash
    npm install
    ```

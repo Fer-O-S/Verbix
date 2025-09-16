@@ -43,23 +43,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Escuchar cambios en el estado de autenticación
   useEffect(() => {
-    console.log("🔥 Iniciando listener de autenticación...");
-
-    // TEMPORAL: Forzar logout en desarrollo para testing
-    // Descomenta la siguiente línea si quieres forzar logout al recargar
-    // AuthService.logout();
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log(
-        "🔄 Estado de autenticación cambió:",
-        firebaseUser?.uid || "sin usuario"
-      );
-
       if (firebaseUser) {
-        console.log("👤 Usuario encontrado en Firebase:", firebaseUser.email);
         try {
           const user = await AuthService.getCurrentUser();
-          console.log("✅ Usuario obtenido de Firestore:", user);
           setState({
             user,
             isLoading: false,
@@ -76,7 +63,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           });
         }
       } else {
-        console.log("🚪 No hay usuario autenticado");
         setState({
           user: null,
           isLoading: false,
@@ -91,13 +77,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Función de registro
   const register = async (data: RegisterFormData): Promise<void> => {
-    console.log("🎯 useAuth.register llamado");
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      console.log("🔄 Llamando a AuthService.register...");
       const user = await AuthService.register(data);
-      console.log("👤 Usuario registrado exitosamente:", user);
       setState({
         user,
         isLoading: false,
@@ -140,13 +123,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Función de logout
   const logout = async (): Promise<void> => {
-    console.log("🚪 Iniciando logout...");
     setState((prev) => ({ ...prev, isLoading: true }));
 
     try {
-      console.log("🔐 Cerrando sesión en Firebase...");
       await AuthService.logout();
-      console.log("✅ Sesión cerrada en Firebase");
 
       // Limpiar estado inmediatamente
       setState({
@@ -155,8 +135,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         isAuthenticated: false,
         error: null,
       });
-
-      console.log("🧹 Estado de autenticación limpiado");
     } catch (error) {
       console.error("❌ Error en logout:", error);
       setState((prev) => ({

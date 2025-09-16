@@ -22,34 +22,18 @@ function RootLayoutNav() {
   const router = useRouter();
 
   useEffect(() => {
-    const currentTime = new Date().toLocaleTimeString();
-    console.log(`🧭 [${currentTime}] Navegación:`, {
-      isLoading,
-      user: user?.email || "sin usuario",
-      segments: segments.join("/") || "raíz",
-      isAuthenticated: !!user,
-    });
-
     if (isLoading) {
-      console.log("⏳ Esperando estado de autenticación...");
       return; // No hacer nada mientras se carga el estado de auth
     }
 
     const inAuthGroup = segments[0] === "(tabs)";
-    console.log("📍 inAuthGroup:", inAuthGroup, "- segments:", segments);
 
     if (!user && inAuthGroup) {
       // Usuario no autenticado intentando acceder a las tabs
-      console.log("🔒 REDIRIGIENDO: Usuario no autenticado a login");
       router.replace("/login");
     } else if (user && !inAuthGroup) {
       // Usuario autenticado en pantallas de auth
-      console.log("✅ REDIRIGIENDO: Usuario autenticado a tabs");
       router.replace("/(tabs)");
-    } else {
-      console.log(
-        "🔄 Sin cambios de navegación necesarios - manteniendo pantalla actual"
-      );
     }
   }, [user, segments, isLoading]);
 

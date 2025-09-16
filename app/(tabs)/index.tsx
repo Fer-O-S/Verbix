@@ -307,27 +307,27 @@ export default function DashboardScreen() {
               </Text>
             </TouchableOpacity>
 
-            {(["regular", "irregular", "auxiliary", "modal"] as VerbType[]).map(
-              (type) => (
-                <TouchableOpacity
-                  key={type}
+            {(["regular", "irregular"] as VerbType[]).map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.filterChip,
+                  selectedType === type && styles.filterChipActive,
+                ]}
+                onPress={() =>
+                  setSelectedType(selectedType === type ? "all" : type)
+                }
+              >
+                <Text
                   style={[
-                    styles.filterChip,
-                    selectedType === type && styles.filterChipActive,
+                    styles.filterChipText,
+                    selectedType === type && styles.filterChipTextActive,
                   ]}
-                  onPress={() => setSelectedType(type)}
                 >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      selectedType === type && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              )
-            )}
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
 
             {(["beginner", "intermediate", "advanced"] as VerbDifficulty[]).map(
               (difficulty) => (
@@ -338,7 +338,11 @@ export default function DashboardScreen() {
                     selectedDifficulty === difficulty &&
                       styles.filterChipActive,
                   ]}
-                  onPress={() => setSelectedDifficulty(difficulty)}
+                  onPress={() =>
+                    setSelectedDifficulty(
+                      selectedDifficulty === difficulty ? "all" : difficulty
+                    )
+                  }
                 >
                   <Text
                     style={[
@@ -477,11 +481,62 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
               )}
 
+            {/* Botones de Debug Temporal */}
+            <View style={styles.debugContainer}>
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={() => {
+                  console.log("🧪 DEBUG: Filtros actuales", {
+                    searchTerm,
+                    selectedType,
+                    selectedDifficulty,
+                    verbsCount: verbs.length,
+                  });
+                  Alert.alert(
+                    "Debug",
+                    `Filtros: Tipo=${selectedType}, Dificultad=${selectedDifficulty}, Verbos=${verbs.length}`
+                  );
+                }}
+              >
+                <Text style={styles.debugButtonText}>🔍 Debug Filtros</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  console.log("🧪 Probando filtro REGULAR específico");
+                  const testVerbs = await VerbService.getVerbs({
+                    type: "regular",
+                    limitCount: 10,
+                  });
+                  console.log(
+                    "🧪 Resultado filtro REGULAR:",
+                    testVerbs.length,
+                    testVerbs.slice(0, 3)
+                  );
+                  Alert.alert(
+                    "Test Regular",
+                    `Encontrados: ${testVerbs.length} verbos regulares`
+                  );
+                }}
+              >
+                <Text style={styles.debugButtonText}>🧪 Test Regular</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Mostrar total de verbos cargados */}
             {verbs.length > 0 && (
               <Text style={styles.verbsCountText}>
-                Mostrando {verbs.length} verbos{" "}
-                {verbs.length >= 1000 && "🎉 ¡Todos cargados!"}
+                Mostrando {verbs.length} verbos
+                {verbs.length >= 1000 && " 🎉 ¡Todos cargados!"}
+                {(selectedType !== "all" || selectedDifficulty !== "all") && (
+                  <Text style={styles.filterActiveText}>
+                    {"\n"}Filtros:{" "}
+                    {selectedType !== "all" && `Tipo: ${selectedType}`}
+                    {selectedDifficulty !== "all" &&
+                      ` Nivel: ${selectedDifficulty}`}
+                  </Text>
+                )}
               </Text>
             )}
           </View>
@@ -761,14 +816,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8d7da",
     color: "#721c24",
   },
-  auxiliaryTag: {
-    backgroundColor: "#d1ecf1",
-    color: "#0c5460",
-  },
-  modalTag: {
-    backgroundColor: "#e2e3e5",
-    color: "#383d41",
-  },
   beginnerTag: {
     backgroundColor: "#d4edda",
     color: "#155724",
@@ -859,5 +906,29 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "700",
+  },
+  debugContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginVertical: 12,
+    gap: 8,
+  },
+  debugButton: {
+    backgroundColor: "#6C757D",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: "center",
+  },
+  debugButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  filterActiveText: {
+    fontSize: 12,
+    color: "#007AFF",
+    fontWeight: "600",
   },
 });

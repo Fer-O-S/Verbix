@@ -134,18 +134,6 @@ export class VerbService {
         verbs = verbs.slice(0, filters.limitCount);
       }
 
-      // Filtro de búsqueda (local, ya que Firestore no soporta búsqueda full-text)
-      if (filters?.searchTerm) {
-        const searchTerm = filters.searchTerm.toLowerCase();
-        verbs = verbs.filter(
-          (verb) =>
-            verb.infinitive.toLowerCase().includes(searchTerm) ||
-            (verb.meaning && verb.meaning.toLowerCase().includes(searchTerm)) ||
-            verb.simplePast.toLowerCase().includes(searchTerm) ||
-            verb.pastParticiple.toLowerCase().includes(searchTerm)
-        );
-      }
-
       return verbs;
     } catch (error) {
       console.error("❌ Error obteniendo verbos:", error);
@@ -441,8 +429,7 @@ export class VerbService {
       constraints.push(where("frequency", "==", filters.frequency));
     }
 
-    // Ordenar y limitar
-    constraints.push(orderBy("infinitive", "asc"));
+    // Solo agregar limit, sin orderBy para evitar índices compuestos
     if (filters?.limitCount) {
       constraints.push(limit(filters.limitCount));
     }
@@ -458,6 +445,9 @@ export class VerbService {
     if (filters?.searchTerm) {
       verbs = this.applyTextSearch(verbs, filters.searchTerm);
     }
+
+    // Ordenar en memoria en lugar de en Firestore
+    verbs.sort((a, b) => a.infinitive.localeCompare(b.infinitive));
 
     return verbs;
   }
@@ -493,14 +483,34 @@ export class VerbService {
   ): Verb[] {
     let filtered = [...verbs];
 
+    // Debug temporal
+    console.log(`🔍 Aplicando filtros en memoria:`, {
+      totalVerbs: verbs.length,
+      filters: filters,
+      tiposUnicos: [...new Set(verbs.map((v) => v.type))],
+      dificultadesUnicas: [...new Set(verbs.map((v) => v.difficulty))],
+    });
+
     if (filters?.type) {
+      const beforeFilter = filtered.length;
       filtered = filtered.filter((v) => v.type === filters.type);
+      console.log(
+        `📊 Filtro tipo '${filters.type}': ${beforeFilter} → ${filtered.length} verbos`
+      );
     }
     if (filters?.difficulty) {
+      const beforeFilter = filtered.length;
       filtered = filtered.filter((v) => v.difficulty === filters.difficulty);
+      console.log(
+        `📊 Filtro dificultad '${filters.difficulty}': ${beforeFilter} → ${filtered.length} verbos`
+      );
     }
     if (filters?.frequency) {
+      const beforeFilter = filtered.length;
       filtered = filtered.filter((v) => v.frequency === filters.frequency);
+      console.log(
+        `📊 Filtro frecuencia '${filters.frequency}': ${beforeFilter} → ${filtered.length} verbos`
+      );
     }
     if (filters?.searchTerm) {
       filtered = this.applyTextSearch(filtered, filters.searchTerm);

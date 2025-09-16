@@ -27,15 +27,12 @@ export interface Verb {
 
 export type VerbType =
   | "regular" // walk, walked, walked
-  | "irregular" // go, went, gone
-  | "modal" // can, could, could
-  | "auxiliary"; // be, am/is/are, was/were, been
+  | "irregular"; // go, went, gone
 
 export type VerbDifficulty =
-  | "beginner" // Nivel A1-A2 (100+ verbos más comunes)
-  | "intermediate" // Nivel B1-B2 (500+ verbos)
-  | "advanced" // Nivel C1-C2 (1000+ verbos)
-  | "expert"; // Verbos técnicos/especializados
+  | "beginner" // Nivel A1-A2 (429 verbos básicos)
+  | "intermediate" // Nivel B1-B2 (504 verbos)
+  | "advanced"; // Nivel C1-C2 (78 verbos avanzados)
 
 export type VerbFrequency =
   | "very-common" // Top 100 verbos más usados
@@ -91,12 +88,23 @@ export interface VerbStats {
   longestStreak: number;
   averageAccuracy: number;
 
-  // Por categoría
-  regularVerbsLearned: number;
-  irregularVerbsLearned: number;
+  // Por tipo
+  byType: {
+    regular: number;
+    irregular: number;
+  };
 
   // Por dificultad
-  beginnerVerbsLearned: number;
-  intermediateVerbsLearned: number;
-  advancedVerbsLearned: number;
+  byDifficulty: {
+    beginner: number;
+    intermediate: number;
+    advanced: number;
+  };
+
+  // Por frecuencia
+  byFrequency: {
+    high: number;
+    medium: number;
+    low: number;
+  };
 }

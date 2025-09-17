@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -20,7 +21,8 @@ export default function DashboardScreen() {
 
   // Estados
   const [loading, setLoading] = useState(true);
-  const [verbs, setVerbs] = useState<Verb[]>([]);
+  const [allVerbs, setAllVerbs] = useState<Verb[]>([]); // Todos los verbos cargados
+  const [verbs, setVerbs] = useState<Verb[]>([]); // Verbos filtrados que se muestran
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<VerbType | "all">("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<
@@ -32,69 +34,90 @@ export default function DashboardScreen() {
     masteredVerbs: 0,
     averageMastery: 0,
   });
-  const [currentPage, setCurrentPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
 
-  const VERBS_PER_PAGE = 50; // Aumentar verbos por página
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
 
-  // Cargar datos al inicializar
+  // Refs para el scroll
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollToTopFadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Función para filtrar verbos en memoria
+  const filterVerbs = (
+    verbsToFilter: Verb[],
+    search: string,
+    type: VerbType | "all",
+    difficulty: VerbDifficulty | "all"
+  ) => {
+    let filtered = [...verbsToFilter];
+
+    // Filtrar por término de búsqueda
+    if (search.trim()) {
+      const searchLower = search.toLowerCase().trim();
+      filtered = filtered.filter(
+        (verb) =>
+          verb.infinitive.toLowerCase().includes(searchLower) ||
+          verb.simplePast.toLowerCase().includes(searchLower) ||
+          verb.pastParticiple.toLowerCase().includes(searchLower) ||
+          verb.meaning?.toLowerCase().includes(searchLower) ||
+          verb.examples?.some((example) =>
+            example.toLowerCase().includes(searchLower)
+          )
+      );
+    }
+
+    // Filtrar por tipo
+    if (type !== "all") {
+      filtered = filtered.filter((verb) => verb.type === type);
+    }
+
+    // Filtrar por dificultad
+    if (difficulty !== "all") {
+      filtered = filtered.filter((verb) => verb.difficulty === difficulty);
+    }
+
+    return filtered;
+  };
   useEffect(() => {
     loadInitialData();
   }, []);
 
-  // Cargar verbos cuando cambian los filtros
+  // Filtrar verbos cuando cambian los filtros (en memoria)
   useEffect(() => {
-    setCurrentPage(1);
-    loadVerbs(true);
-  }, [searchTerm, selectedType, selectedDifficulty]);
+    if (allVerbs.length > 0) {
+      const filtered = filterVerbs(
+        allVerbs,
+        searchTerm,
+        selectedType,
+        selectedDifficulty
+      );
+      setVerbs(filtered);
+    }
+  }, [searchTerm, selectedType, selectedDifficulty, allVerbs]);
 
   const loadInitialData = async () => {
     try {
+      setLoading(true);
+
       // Cargar estadísticas del usuario
       if (user?.uid) {
         const stats = await VerbService.getUserStats(user.uid);
         setUserStats(stats);
       }
 
-      // Cargar primeros verbos
-      await loadVerbs(true);
+      // Cargar TODOS los verbos desde el inicio (1,011)
+      const loadedVerbs = await VerbService.getVerbs({
+        limitCount: 1500, // Cargar más que los 1,011 para asegurar que obtenemos todos
+      });
+
+      setAllVerbs(loadedVerbs); // Guardar todos los verbos
+      // Los verbos filtrados se actualizarán automáticamente por el useEffect
+      setLoading(false);
+
+      console.log(`🎉 Cargados ${loadedVerbs.length} verbos desde el inicio`);
     } catch (error) {
       console.error("❌ Error cargando datos iniciales:", error);
       Alert.alert("Error", "No se pudieron cargar los datos iniciales");
-    }
-  };
-
-  const loadVerbs = async (resetList = false) => {
-    try {
-      if (resetList) {
-        setLoading(true);
-        setVerbs([]);
-        setCurrentPage(1);
-      } else {
-        setLoadingMore(true);
-      }
-
-      const filters: any = {
-        limitCount: VERBS_PER_PAGE,
-      };
-
-      if (searchTerm) filters.searchTerm = searchTerm;
-      if (selectedType !== "all") filters.type = selectedType;
-      if (selectedDifficulty !== "all") filters.difficulty = selectedDifficulty;
-
-      const verbsData = await VerbService.getVerbs(filters);
-
-      if (resetList) {
-        setVerbs(verbsData);
-      } else {
-        setVerbs((prev) => [...prev, ...verbsData]);
-      }
-    } catch (error) {
-      console.error("❌ Error cargando verbos:", error);
-      Alert.alert("Error", "No se pudieron cargar los verbos");
-    } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   };
 
@@ -142,82 +165,6 @@ export default function DashboardScreen() {
     }
   };
 
-  // Función para cargar TODOS los verbos
-  const loadAllVerbs = async () => {
-    if (loading || loadingMore) return;
-
-    try {
-      setLoading(true);
-
-      const filters: any = {
-        limitCount: 1500, // Cargar más que los 1,011 para asegurar que obtenemos todos
-      };
-
-      if (searchTerm.trim()) {
-        filters.searchTerm = searchTerm.trim();
-      }
-      if (selectedType !== "all") {
-        filters.type = selectedType;
-      }
-      if (selectedDifficulty !== "all") {
-        filters.difficulty = selectedDifficulty;
-      }
-
-      const allVerbs = await VerbService.getVerbs(filters);
-      setVerbs(allVerbs);
-      setCurrentPage(Math.ceil(allVerbs.length / VERBS_PER_PAGE));
-
-      Alert.alert(
-        "¡Éxito!",
-        `Se cargaron ${allVerbs.length} verbos completos 🎉`,
-        [{ text: "¡Genial!", style: "default" }]
-      );
-    } catch (error) {
-      console.error("❌ Error cargando todos los verbos:", error);
-      Alert.alert("Error", "No se pudieron cargar todos los verbos");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Función para cargar más verbos
-  const loadMoreVerbs = async () => {
-    if (loadingMore) return; // Prevenir múltiples llamadas
-
-    try {
-      setLoadingMore(true);
-      const nextPage = currentPage + 1;
-
-      const filters: any = {
-        limitCount: VERBS_PER_PAGE,
-        // Nota: En una implementación real, necesitarías offset o cursor
-        // Para simplificar, cargaremos más verbos sin filtros específicos de página
-      };
-
-      if (searchTerm.trim()) {
-        filters.searchTerm = searchTerm.trim();
-      }
-      if (selectedType !== "all") {
-        filters.type = selectedType;
-      }
-      if (selectedDifficulty !== "all") {
-        filters.difficulty = selectedDifficulty;
-      }
-
-      // Obtener más verbos (esto podría duplicar algunos, pero es una solución simple)
-      filters.limitCount = VERBS_PER_PAGE * nextPage;
-      const newVerbs = await VerbService.getVerbs(filters);
-
-      setVerbs(newVerbs);
-      setCurrentPage(nextPage);
-    } catch (error) {
-      console.error("❌ Error cargando más verbos:", error);
-      Alert.alert("Error", "No se pudieron cargar más verbos");
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
   // Funciones auxiliares para estilos
   const getTypeStyle = (type: VerbType) => {
     switch (type) {
@@ -243,8 +190,30 @@ export default function DashboardScreen() {
     }
   };
 
+  // Función para manejar el scroll
+  const handleScroll = (event: any) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+
+    // Mostrar botón "scroll to top" después de 300px
+    const shouldShowScrollToTop = scrollY > 300;
+
+    // Animar botón scroll to top
+    if (shouldShowScrollToTop !== showScrollToTop) {
+      setShowScrollToTop(shouldShowScrollToTop);
+      Animated.timing(scrollToTopFadeAnim, {
+        toValue: shouldShowScrollToTop ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }; // Función para scroll hacia arriba
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header fijo */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Verbix Dashboard</Text>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
@@ -252,7 +221,95 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      {/* Filtros sticky */}
+      <View style={styles.stickyFiltersContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar verbos..."
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+        />
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScrollView}
+        >
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              selectedType === "all" && styles.filterChipActive,
+            ]}
+            onPress={() => setSelectedType("all")}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                selectedType === "all" && styles.filterChipTextActive,
+              ]}
+            >
+              Todos
+            </Text>
+          </TouchableOpacity>
+
+          {(["regular", "irregular"] as VerbType[]).map((type) => (
+            <TouchableOpacity
+              key={type}
+              style={[
+                styles.filterChip,
+                selectedType === type && styles.filterChipActive,
+              ]}
+              onPress={() =>
+                setSelectedType(selectedType === type ? "all" : type)
+              }
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  selectedType === type && styles.filterChipTextActive,
+                ]}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {(["beginner", "intermediate", "advanced"] as VerbDifficulty[]).map(
+            (difficulty) => (
+              <TouchableOpacity
+                key={difficulty}
+                style={[
+                  styles.filterChip,
+                  selectedDifficulty === difficulty && styles.filterChipActive,
+                ]}
+                onPress={() =>
+                  setSelectedDifficulty(
+                    selectedDifficulty === difficulty ? "all" : difficulty
+                  )
+                }
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selectedDifficulty === difficulty &&
+                      styles.filterChipTextActive,
+                  ]}
+                >
+                  {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            )
+          )}
+        </ScrollView>
+      </View>
+
+      {/* ScrollView principal */}
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
         {/* Stats Card */}
         <View style={styles.statsContainer}>
           <Text style={styles.statsTitle}>Tu Progreso 📊</Text>
@@ -274,89 +331,6 @@ export default function DashboardScreen() {
               <Text style={styles.statLabel}>Promedio</Text>
             </View>
           </View>
-        </View>
-
-        {/* Filtros */}
-        <View style={styles.filtersContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar verbos..."
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-          />
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterScrollView}
-          >
-            <TouchableOpacity
-              style={[
-                styles.filterChip,
-                selectedType === "all" && styles.filterChipActive,
-              ]}
-              onPress={() => setSelectedType("all")}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selectedType === "all" && styles.filterChipTextActive,
-                ]}
-              >
-                Todos
-              </Text>
-            </TouchableOpacity>
-
-            {(["regular", "irregular"] as VerbType[]).map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.filterChip,
-                  selectedType === type && styles.filterChipActive,
-                ]}
-                onPress={() =>
-                  setSelectedType(selectedType === type ? "all" : type)
-                }
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    selectedType === type && styles.filterChipTextActive,
-                  ]}
-                >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-
-            {(["beginner", "intermediate", "advanced"] as VerbDifficulty[]).map(
-              (difficulty) => (
-                <TouchableOpacity
-                  key={difficulty}
-                  style={[
-                    styles.filterChip,
-                    selectedDifficulty === difficulty &&
-                      styles.filterChipActive,
-                  ]}
-                  onPress={() =>
-                    setSelectedDifficulty(
-                      selectedDifficulty === difficulty ? "all" : difficulty
-                    )
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      selectedDifficulty === difficulty &&
-                        styles.filterChipTextActive,
-                    ]}
-                  >
-                    {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              )
-            )}
-          </ScrollView>
         </View>
 
         {/* Load Data Button */}
@@ -443,44 +417,6 @@ export default function DashboardScreen() {
               </View>
             ))}
 
-            {loadingMore && (
-              <ActivityIndicator
-                size="large"
-                color="#007AFF"
-                style={styles.loader}
-              />
-            )}
-
-            {/* Botón Cargar Más */}
-            {!loading &&
-              !loadingMore &&
-              verbs.length > 0 &&
-              verbs.length >= VERBS_PER_PAGE && (
-                <TouchableOpacity
-                  style={styles.loadMoreButton}
-                  onPress={loadMoreVerbs}
-                >
-                  <Text style={styles.loadMoreButtonText}>
-                    📄 Cargar Más Verbos
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-            {/* Botón para cargar TODOS los verbos */}
-            {!loading &&
-              !loadingMore &&
-              verbs.length > 0 &&
-              verbs.length < 1000 && (
-                <TouchableOpacity
-                  style={styles.loadAllButton}
-                  onPress={loadAllVerbs}
-                >
-                  <Text style={styles.loadAllButtonText}>
-                    🔥 Mostrar TODOS los Verbos (1,011)
-                  </Text>
-                </TouchableOpacity>
-              )}
-
             {/* Botones de Debug Temporal */}
             <View style={styles.debugContainer}>
               <TouchableOpacity
@@ -557,6 +493,20 @@ export default function DashboardScreen() {
           />
         )}
       </ScrollView>
+
+      {/* Botón flotante para scroll hacia arriba */}
+      {showScrollToTop && (
+        <Animated.View
+          style={[styles.scrollToTopButton, { opacity: scrollToTopFadeAnim }]}
+        >
+          <TouchableOpacity
+            style={styles.scrollToTopButtonInner}
+            onPress={scrollToTop}
+          >
+            <Text style={styles.scrollToTopButtonText}>⬆️</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -930,5 +880,81 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#007AFF",
     fontWeight: "600",
+  },
+  // Estilos para filtros sticky
+  stickyFiltersContainer: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5E7",
+    elevation: 3, // Para Android
+    shadowColor: "#000", // Para iOS
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+  },
+  // Estilos para botones flotantes
+  floatingButton: {
+    position: "absolute",
+    bottom: 20,
+    left: "50%",
+    transform: [{ translateX: -75 }], // Centrar el botón (ancho aproximado 150px)
+    zIndex: 1000,
+  },
+  floatingButtonInner: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 25,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+  },
+  floatingButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  floatingButtonSubtext: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    opacity: 0.8,
+    textAlign: "center",
+    marginTop: 2,
+  },
+  scrollToTopButton: {
+    position: "absolute",
+    bottom: 100,
+    right: 20,
+    zIndex: 1000,
+  },
+  scrollToTopButtonInner: {
+    backgroundColor: "#34C759",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+  },
+  scrollToTopButtonText: {
+    fontSize: 20,
   },
 });

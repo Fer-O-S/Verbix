@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import HamburgerMenu from "../../components/HamburgerMenu";
 import { useAuth } from "../../src/hooks/useAuth";
 import { VerbService } from "../../src/services/VerbService";
 import { Verb, VerbDifficulty, VerbType } from "../../src/types/verb";
@@ -215,7 +216,24 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header fijo */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Verbix Dashboard</Text>
+        <View style={styles.headerLeft}>
+          <HamburgerMenu
+            onUpdateData={loadInitialData}
+            onShowStatistics={() =>
+              Alert.alert("Estadísticas", "Próximamente disponible")
+            }
+            onShowSettings={() =>
+              Alert.alert("Configuración", "Próximamente disponible")
+            }
+            onShowAbout={() =>
+              Alert.alert(
+                "Acerca de",
+                "Verbix v1.0.0\nAplicación para aprender verbos en inglés"
+              )
+            }
+          />
+          <Text style={styles.headerTitle}>Verbix Dashboard</Text>
+        </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Salir</Text>
         </TouchableOpacity>
@@ -525,6 +543,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderBottomWidth: 1,
     borderBottomColor: "#e9ecef",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   headerTitle: {
     fontSize: 24,

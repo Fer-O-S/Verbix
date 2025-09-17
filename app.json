@@ -19,7 +19,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fernandoortega.verbix",
+      "versionCode": 1
     },
     "web": {
       "output": "static",
@@ -43,6 +45,14 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e01c5c45-66b8-491f-8a9c-108056701799"
+      }
+    },
+    "owner": "fernando_ortega"
   }
 }
